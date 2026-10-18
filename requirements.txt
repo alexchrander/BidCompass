@@ -1,0 +1,8 @@
+requests
+pandas
+pyarrow
+python-dotenv
+pymupdf
+anthropic
+streamlit
+tqdm
