@@ -7,3 +7,5 @@ anthropic
 streamlit
 tqdm
 beautifulsoup4
+playwright
+google-genai

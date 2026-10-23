@@ -1,0 +1,104 @@
+{
+  "version": 2,
+  "model": "gemini-3.5-flash",
+  "terms_task": "Also extract the other tender terms a bidder needs to know, as rows in 'terms'. Use only the fields listed below (group: field = meaning). One row per fact; repeat the field for several facts (several insurances, several award factors, several documents). Rules: include a fact only if the documents state it explicitly, never infer or guess, and omit fields that are not stated. 'value' is short and normalised: numbers without thousand separators or currency symbols (84431.00), dates as YYYY-MM-DD, yes/no as 'yes'/'no'; put the unit in 'unit' (EUR, days, months, %, years) and any qualifier in 'detail' (factor name, insurance type, role, document name). lot is null when the fact applies to the whole procedure. Do not repeat the alvará requirements here. quote is a verbatim excerpt (max 300 characters) and source_file is as in the '=== FILE:' header.",
+  "term_fields": {
+    "price": {
+      "base_price_excl_vat": "Base price excluding VAT in EUR, for the procedure or per lot",
+      "price_form": "How the contract is priced (preço global, série de preços, preços unitários, misto)",
+      "price_revision": "Whether price revision (revisão de preços) applies: yes/no",
+      "abnormally_low_price_rule": "Rule or formula used to treat a proposal as abnormally low, as stated"
+    },
+    "deadlines": {
+      "execution_period": "Contract execution period (value + unit days or months)",
+      "proposal_deadline": "Deadline to submit proposals (date, or number of days from publication)",
+      "proposal_validity": "How long a proposal must remain valid (value + unit)",
+      "site_visit": "Whether a site visit is required or optional: required/optional/none"
+    },
+    "guarantees": {
+      "performance_bond": "Caução / performance guarantee as a percentage of the contract price (unit %)",
+      "guarantee_forms": "Accepted forms of guarantee (bank guarantee, insurance, deposit), in detail",
+      "insurance_required": "A required insurance: type in detail, minimum amount in value if stated",
+      "retention": "Payment retention percentage (unit %)"
+    },
+    "award": {
+      "award_criterion": "lowest_price or most_economically_advantageous",
+      "award_factor": "An award factor: name in detail, weight in value (unit %)"
+    },
+    "technical": {
+      "works_experience": "Required previous works experience: description in detail, minimum count or value in value",
+      "key_personnel": "A required key person (e.g. director de obra, técnico de segurança): role in detail, minimum experience or qualification in value",
+      "equipment": "Required equipment or means, in detail",
+      "certification": "Required certification or standard (e.g. ISO 9001), in detail",
+      "technical_document": "A technical document that must be submitted with the proposal (memória descritiva, plano de trabalhos), in detail"
+    },
+    "financial": {
+      "min_turnover": "Minimum turnover required (EUR)",
+      "financial_ratio": "Required financial ratio: name in detail, threshold in value",
+      "bank_declaration": "Whether a bank or financial-capacity declaration is required: yes/no"
+    },
+    "eligibility": {
+      "exclusion_declaration": "Whether a declaration of no exclusion grounds (art. 55 CCP) is required: yes/no",
+      "required_document": "A document the bidder must submit, name in detail",
+      "proposal_language": "Language the proposal must be written in",
+      "foreign_bidders": "Whether foreign bidders are accepted or have extra requirements, in detail",
+      "joint_bidding": "Whether consortia (agrupamentos) are allowed and any condition, in detail"
+    }
+  },
+  "file_name_keywords": ["programa", "caderno", "anuncio", "anúncio", "concurso", "convite", "ce_", "pp_", "cláusulas", "clausulas", "procedimento"],
+  "max_chars_per_file": 150000,
+  "system_instruction": "You read Portuguese public works tender documents (programa do procedimento, caderno de encargos, anúncio) and extract (1) which IMPIC construction licence (alvará / título de registo) a bidder must hold and (2) the other terms a bidder needs to know. Answer only from the text provided. Never guess: if the documents do not say, omit the fact (terms) or return states_alvara = \"no\" or \"unclear\" as instructed below.",
+  "task": "Extract the alvará (construction licence) requirement.\n\nBackground: an alvará lists habilitações. Each habilitação is a subcategory of a category (written like '12.ª subcategoria da 4.ª categoria', code 4.12) together with a class (1-9) that limits the contract value. Categories: 1 Edifícios e património construído, 2 Vias de comunicação/obras de arte e outras infraestruturas, 3 Obras hidráulicas, 4 Instalações e equipamentos, 5 Outros trabalhos. A 'subcategoria determinante' or a 'habilitação principal' may be flagged.\n\nRules:\n- states_alvara: 'yes' if the documents require an alvará / título de registo / certificado de empreiteiro de obras públicas with at least one named subcategory; 'no' if they state none is required; 'unclear' if an alvará is required but no subcategory can be identified, or the documents contradict each other.\n- Only list requirements imposed on bidders or the adjudicatário. Ignore model templates (declaração de modelo, 'titular do alvará nº …'), references to subcontractors' general obligations and legal quotations that are not a requirement of this tender.\n- If several lots have different requirements, give one entry per lot in 'lots' (use lot_name null if there are no lots). 'requirements' holds those common to the whole procedure or the lot.\n- class_rule: 'global_value' if the class must cover the total contract/proposal value; 'work_value' if it must cover the value of the works of that subcategory; 'explicit_class' if a class number is stated (put it in class_number); 'not_stated' otherwise.\n- quote: a short verbatim excerpt (max 300 characters) from the document that supports the requirement; source_file is the file it came from, as given in the '=== FILE:' header.\n- Alternatives ('ou') should be returned as separate requirements with alternative_group set to the same label (for example 'A'); otherwise null.\n- notes: one short sentence about anything ambiguous.",
+  "response_schema": {
+    "type": "object",
+    "properties": {
+      "states_alvara": {"type": "string", "enum": ["yes", "no", "unclear"]},
+      "lots": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "lot_name": {"type": "string", "nullable": true},
+            "requirements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "category": {"type": "integer"},
+                  "subcategory": {"type": "integer"},
+                  "determinant": {"type": "boolean"},
+                  "class_rule": {"type": "string", "enum": ["global_value", "work_value", "explicit_class", "not_stated"]},
+                  "class_number": {"type": "integer", "nullable": true},
+                  "alternative_group": {"type": "string", "nullable": true},
+                  "quote": {"type": "string"},
+                  "source_file": {"type": "string"}
+                },
+                "required": ["category", "subcategory", "class_rule", "quote", "source_file"]
+              }
+            }
+          },
+          "required": ["lot_name", "requirements"]
+        }
+      },
+      "terms": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "group": {"type": "string"},
+            "field": {"type": "string"},
+            "lot": {"type": "string", "nullable": true},
+            "value": {"type": "string"},
+            "unit": {"type": "string", "nullable": true},
+            "detail": {"type": "string", "nullable": true},
+            "quote": {"type": "string"},
+            "source_file": {"type": "string"}
+          },
+          "required": ["group", "field", "value", "quote", "source_file"]
+        }
+      },
+      "notes": {"type": "string"}
+    },
+    "required": ["states_alvara", "lots", "terms", "notes"]
+  }
+}

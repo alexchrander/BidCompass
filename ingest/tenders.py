@@ -3,7 +3,7 @@
 Source: data/raw/base/anuncios_<year>/anuncios<year>.json for 2025 and 2026, downloaded with
 `python -m ingest.base anuncios 2025 2026`. Each record is a public procurement notice: buyer,
 description, base price, CPV codes, bid deadline and links to the tender documents.
-Output: data/processed/tenders.parquet, one row per IdIncm. A procedure and its rectification
+Output: data/processed/tenders/tenders.parquet, one row per IdIncm. A procedure and its rectification
 have different IdIncm, so both are kept; has_amendment marks procedures that share their nAnuncio
 with a non-procedure row. Remaining IdIncm duplicates are resolved by: is_procedure, non-empty url,
 latest dataPublicacao.
@@ -33,7 +33,7 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = PROJECT_ROOT / "data" / "raw" / "base"
-OUTPUT_FILE = PROJECT_ROOT / "data" / "processed" / "tenders.parquet"
+OUTPUT_FILE = PROJECT_ROOT / "data" / "processed" / "tenders" / "tenders.parquet"
 YEARS = (2025, 2026)
 WORKS_TYPE = "Empreitadas de obras públicas"
 CPV_CODE_RE = re.compile(r"^\s*(\d{8})")

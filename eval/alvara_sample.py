@@ -1,6 +1,6 @@
 """Measurement sample: do construction tender notices state the required alvará?
 
-Samples 2026 construction procedures from data/processed/tenders.parquet, downloads the notice PDF
+Samples 2026 construction procedures from data/processed/tenders/tenders.parquet, downloads the notice PDF
 from the `url` column, extracts the text and prints passages around alvará-related keywords.
 Annotation columns in eval/alvara_sample.csv are meant to be filled in by hand.
 
@@ -16,7 +16,7 @@ import pandas as pd
 import requests
 
 ROOT = Path(__file__).resolve().parent.parent
-TENDERS = ROOT / "data" / "processed" / "tenders.parquet"
+TENDERS = ROOT / "data" / "processed" / "tenders" / "tenders.parquet"
 SAMPLE_CSV = ROOT / "eval" / "alvara_sample.csv"
 PDF_DIR = ROOT / "data" / "raw" / "dre"
 KEYWORDS = ["alvará", "habilitação", "habilitações", "categoria", "subcategoria", "classe",
@@ -63,7 +63,7 @@ def download(url: str, path: Path) -> bool:
 
 
 def extract_text(pdf_path: Path) -> str:
-    txt_path = pdf_path.with_suffix(".txt")
+    txt_path = pdf_path.with_name("notice.txt")
     with pymupdf.open(pdf_path) as doc:
         text = "\n".join(page.get_text() for page in doc)
     txt_path.write_text(text, encoding="utf-8")
@@ -89,7 +89,8 @@ def main() -> None:
 
     downloaded = with_matches = no_matches = 0
     for row in sample.itertuples():
-        pdf_path = PDF_DIR / f"{file_stem(row.nAnuncio)}.pdf"
+        pdf_path = PDF_DIR / file_stem(row.nAnuncio) / "notice.pdf"
+        pdf_path.parent.mkdir(parents=True, exist_ok=True)
         if not download(row.url, pdf_path):
             continue
         downloaded += 1
