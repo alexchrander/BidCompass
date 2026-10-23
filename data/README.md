@@ -17,6 +17,7 @@ data/
     │   ├── tender_requirements.csv   Alvará requirements per tender, with review status
     │   ├── tender_terms.csv          Price, deadlines, guarantees, award, technical, financial, eligibility terms
     │   ├── tender_alvara_status.csv  One row per tender: counts, notice-vs-peças disagreement, review progress
+    │   ├── translations.csv          Portuguese → English cache for the review screen
     │   ├── tender_columns.csv        Column dictionary (meaning and source of every column)
     │   └── tender_terms_fields.csv   Term groups/fields extracted
     ├── eval/                 Outputs of the eval/ scripts
@@ -156,6 +157,7 @@ Currently: 503451541 (41 qualifications) and 506805450.
 | `extract/pecas_prompt.json` | (in `extract/`) Prompt, model, term field list and response schema for the Gemini extraction. Edit here |
 | `extract/pecas_llm.py` | (in `extract/`) One Gemini call per tender; writes `pecas/alvara_llm.json` (alvará + terms) |
 | `extract/build_requirements.py`, `extract/reference.py` | (in `extract/`) Build the master tables; class table / valid codes |
+| `extract/translate.py` | (in `extract/`) English translations of quotes/details for the reviewer (`python -m extract.translate`, cached in `translations.csv`) |
 | `eval/review_requirements.py`, `eval/compare_base.py` | Terminal review of the master tables; LLM-vs-BASE cross-check (price, deadline, lots) | |
 | `eval/check_dedup.py` | Checks duplicate `nAnuncio` groups in the raw announcements |
 | `eval/test_impic_parse.py` | Offline test of the IMPIC parsers |
@@ -169,6 +171,7 @@ Currently: 503451541 (41 qualifications) and 506805450.
 5. `python -m ingest.pecas --from-csv eval/archive/alvara_prefill.csv` → `raw/dre/<id>/pecas/` (skips tenders already downloaded; `--not-yes` limits to unresolved ones)
 6. `python -m extract.pecas_llm` → `raw/dre/<id>/pecas/alvara_llm.json` (needs `gemini_api_key` in `.env`; prompt in `extract/pecas_prompt.json`)
 7. `python -m extract.build_requirements` → `processed/extraction/tender_requirements.csv`, `tender_terms.csv`, `tender_alvara_status.csv`, `tender_columns.csv`, `tender_terms_fields.csv`
-8. `python -m eval.compare_base` → `processed/eval/base_comparison.csv` (cross-check of price, deadline and lots against BASE)
-9. `python -m eval.review_requirements` → fills the review columns
-10. `python -m ingest.impic <nif>` → `raw/impic/` + `processed/impic/`
+8. `python -m extract.translate` → `processed/extraction/translations.csv`, then re-run step 7 to fill `quote_en` (translation reads the tables from step 7)
+9. `python -m eval.compare_base` → `processed/eval/base_comparison.csv` (cross-check of price, deadline and lots against BASE)
+10. `python -m eval.review_requirements` → fills the review columns
+11. `python -m ingest.impic <nif>` → `raw/impic/` + `processed/impic/`

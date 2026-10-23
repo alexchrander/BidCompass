@@ -13,6 +13,9 @@ For each row with status 'unreviewed' you choose:
     a  add       something the LLM missed for this tender
     q  quit      (progress is saved after every answer)
 
+Quotes are shown in Portuguese and in English (python -m extract.translate), with a check that the quote
+appears verbatim in the source file.
+
 Run: python -m eval.review_requirements [8844-2026 ...] [--only requirements|terms] [--reviewer NAME] [--all]
      --all also shows rows that are already reviewed.
 """
@@ -27,7 +30,8 @@ from datetime import datetime
 
 import pandas as pd
 
-from extract.build_requirements import COLUMNS, PROMPT_FILE, REQ_CSV, TERMS_COLUMNS, TERMS_CSV
+from extract.build_requirements import COLUMNS, PROMPT_FILE, REQ_CSV, TERMS_COLUMNS, TERMS_CSV, load_cache
+from ingest.common import RAW_DIR
 from extract.reference import REFERENCE
 
 CLASS_RULES = {"g": "global_value", "w": "work_value", "n": "not_stated", "x": "explicit_class"}
@@ -42,6 +46,25 @@ def subcategory_names() -> dict[str, str]:
 
 
 SUBCATEGORIES = subcategory_names()
+TRANSLATIONS = load_cache()
+
+
+def english(text: str) -> str:
+    """English for a Portuguese string, empty when there is none (numbers, yes/no)."""
+    return "" if re.fullmatch(r"[a-z]+(_[a-z]+)+", text) else TRANSLATIONS.get(text, "")
+
+
+def squash(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def quote_check(row: pd.Series) -> str:
+    """Is the quote really in the source file?"""
+    path = RAW_DIR / "dre" / row["nAnuncio"] / "pecas" / "text" / row["source_file"]
+    if not row["quote"] or not path.exists():
+        return "source file not found"
+    return "quote found in source file" if squash(row["quote"]) in squash(path.read_text(encoding="utf-8", errors="ignore")) \
+        else "WARNING: quote NOT found verbatim in source file"
 
 
 def keep(prompt: str, current: str) -> str:
@@ -85,6 +108,9 @@ def new_requirement(tender: str) -> pd.Series:
 def show_term(row: pd.Series) -> None:
     print(f"  {row['group']} / {row['field']}  ({FIELD_MEANING.get(row['field'], '?')})")
     print(f"  value={row['value'] or '-'}  unit={row['unit'] or '-'}  detail={row['detail'] or '-'}")
+    translated = [f"{label}: {english(row[col])}" for label, col in (("value", "value"), ("detail", "detail")) if english(row[col])]
+    if translated:
+        print("  in English  " + "   ".join(translated))
 
 
 def edit_term(row: pd.Series) -> None:
@@ -149,7 +175,9 @@ def main() -> None:
         row = df.loc[i].copy()
         print(f"\n[{pos}/{len(todo)}] {tender}  {name}  lot: {row['lot'] or '-'}  status: {row['status']}")
         table["show"](row)
-        print(f"  quote: {row['quote']}\n  file:  {row['source_file']}")
+        print(f"  quote (PT): {row['quote']}")
+        print(f"  quote (EN): {row.get('quote_en') or english(row['quote']) or '(no translation)'}")
+        print(f"  file: {row['source_file']}  [{quote_check(row)}]")
         while True:
             ans = input("  [c]onfirm / [e]dit / [r]eject / [s]kip / [a]dd / [q]uit > ").strip().lower()
             if ans == "c":
